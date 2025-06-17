@@ -34,7 +34,7 @@ Perfect for researchers, analysts, and professionals who need accurate answers f
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/DocuMind_RAG_LLM.git
+git clone https://github.com/harshitbhatt18/DocuMind.git
 cd DocuMind_RAG_LLM
 ```
 
@@ -143,9 +143,6 @@ ollama pull llama3.1:8b
 ollama pull nomic-embed-text
 ```
 
-### Environment Variables
-No additional environment variables required - the application runs entirely locally.
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -168,10 +165,6 @@ Ensure Ollama is running:
 ```bash
 ollama serve
 ```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
