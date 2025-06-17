@@ -3,28 +3,28 @@ os.environ["STREAMLIT_SERVER_FILE_WATCHER_TYPE"] = "none"
 
 import tempfile
 import time
-
 import chromadb
 import ollama
 import streamlit as st
+
 from chromadb.utils.embedding_functions.ollama_embedding_function import (
     OllamaEmbeddingFunction,
 )
+
 try:
     from langchain_community.document_loaders import PyMuPDFLoader, Docx2txtLoader
 except ImportError:
-    st.error("❌ Missing dependencies! Please install docx2txt by running: pip install docx2txt==0.8")
+    st.error("Missing dependencies! Please install docx2txt by running: pip install docx2txt==0.8")
     st.stop()
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import CrossEncoder
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
-# Additional PyTorch compatibility fix
 import torch
 torch.classes.__path__ = []
 
-# Configure Streamlit page
+# Streamlit page config
 st.set_page_config(
     page_title="DocuMind Pro",
     page_icon="🔍",
@@ -32,7 +32,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for professional dark theme
+# CSS
 st.markdown("""
 <style>
     /* Global dark theme */
@@ -184,7 +184,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 system_prompt = """
-You are an AI assistant tasked with providing detailed answers based solely on the given context. Your goal is to analyze the information provided and formulate a comprehensive, well-structured response to the question.
+You are a smart assistant tasked with providing detailed answers based solely on the given context. Your goal is to analyze the information provided and formulate a comprehensive, well-structured response to the question.
 
 context will be passed as "Context:"
 user question will be passed as "Question:"
@@ -242,10 +242,9 @@ def process_document(uploaded_file: UploadedFile) -> list[Document]:
     try:
         # Write the uploaded file content to temp file
         temp_file.write(uploaded_file.read())
-        temp_file.flush()  # Ensure all data is written
+        temp_file.flush()
         temp_file.close()  # Close the file handle before other processes use it
         
-        # Load and process the document based on file type
         if file_extension == 'pdf':
             loader = PyMuPDFLoader(temp_file_path)
         elif file_extension in ['docx', 'doc']:
@@ -260,7 +259,7 @@ def process_document(uploaded_file: UploadedFile) -> list[Document]:
             doc.metadata['file_type'] = file_extension
             doc.metadata['original_filename'] = uploaded_file.name
         
-        # Split the documents into chunks (optimized for faster processing)
+        # Split the documents into chunks
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=300,
             chunk_overlap=50,
@@ -269,17 +268,14 @@ def process_document(uploaded_file: UploadedFile) -> list[Document]:
         return text_splitter.split_documents(docs)
         
     finally:
-        # Ensure temp file is deleted even if an error occurs
         try:
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
         except PermissionError:
-            # On Windows, sometimes we need to wait a moment before deletion
             time.sleep(0.1)
             try:
                 os.unlink(temp_file_path)
             except PermissionError:
-                # If still can't delete, log a warning but don't crash
                 st.warning(f"Could not delete temporary file: {temp_file_path}")
         except Exception as e:
             st.warning(f"Error cleaning up temporary file: {e}")
@@ -334,7 +330,6 @@ def add_to_vector_collection(all_splits: list[Document], file_name: str):
         if existing_data['ids']:
             collection.delete(ids=existing_data['ids'])
     except Exception as e:
-        # If collection is empty or doesn't exist, continue
         pass
     
     documents, metadatas, ids = [], [], []
@@ -401,7 +396,7 @@ def call_llm(context: str, prompt: str):
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful AI assistant. Provide concise, accurate answers based on the given context. Keep responses focused and direct.",
+                "content": "You are a helpful smart assistant. Provide concise, accurate answers based on the given context. Keep responses focused and direct.",
             },
             {
                 "role": "user",
@@ -464,7 +459,6 @@ def check_ollama_connection():
 
 
 if __name__ == "__main__":
-    # Main header
     st.markdown("""
     <div class="main-header">
         <h2>DocuMind Pro</h2>
@@ -565,16 +559,16 @@ if __name__ == "__main__":
                     
                     # Check if any documents were successfully processed
                     if not all_documents_splits:
-                        st.error("❌ No documents were successfully processed. Please check file formats and try again.")
+                        st.error("No documents were successfully processed. Please check file formats and try again.")
                         st.session_state.document_processed = False
                         st.session_state.processing = False
                         progress_bar.empty()
                         status_text.empty()
                     else:
-                        status_text.text("✂️ Organizing all chunks...")
+                        status_text.text("Organizing all chunks...")
                         progress_bar.progress(75)
                         
-                        status_text.text("🧠 Creating embeddings for all documents...")
+                        status_text.text("Creating embeddings for all documents...")
                         progress_bar.progress(85)
                         
                         # Create combined filename for collection
@@ -585,6 +579,7 @@ if __name__ == "__main__":
                         progress_bar.progress(100)
                         
                         st.session_state.document_processed = True
+
                         # Store file names as a comma-separated string
                         file_names = [f.name for f in uploaded_files]
                         st.session_state.document_name = f"{len(uploaded_files)} files: " + ", ".join(file_names[:3])
@@ -596,7 +591,7 @@ if __name__ == "__main__":
                         status_text.empty()
                     
                 except Exception as e:
-                    st.error(f"❌ Error processing documents: {str(e)}")
+                    st.error(f"Error processing documents: {str(e)}")
                     st.session_state.document_processed = False
                 
                 finally:
@@ -636,21 +631,21 @@ if __name__ == "__main__":
         ask = st.button(
             "🔍 Ask",
             disabled=not st.session_state.document_processed or not prompt.strip(),
-            help="Get AI answer to your question"
+            help="Get smart answer to your question"
         )
 
     with col2:
         st.markdown("""
         <div class="info-box">
             <strong>How it works:</strong><br>
-            Upload Documents → Process All → Ask Questions → Get AI Answers from All Files
+            Upload Documents → Process All → Ask Questions → Get Smart Answers from All Files
         </div>
         """, unsafe_allow_html=True)
 
     # Handle question answering
     if ask and prompt and st.session_state.document_processed:
         st.markdown("---")
-        st.markdown("### 🤖 AI Response")
+        st.markdown("### 🤖 Smart Response")
         
         # Create progress tracking
         progress_placeholder = st.empty()
@@ -671,15 +666,18 @@ if __name__ == "__main__":
                 
                 # Step 3: Generate response
                 progress_placeholder.info("🤖 Generating response...")
-                progress_placeholder.empty()
-                
-                # Display the response
-                st.markdown("**Answer:**")
-                response_placeholder = st.empty()
                 
                 # Stream the response
                 full_response = ""
+                response_placeholder = st.empty()
+                answer_header_shown = False
+                
                 for chunk in call_llm(context=relevant_text, prompt=prompt):
+                    # Show the Answer header only when first chunk arrives
+                    if not answer_header_shown:
+                        progress_placeholder.empty()
+                        answer_header_shown = True
+                    
                     full_response += chunk
                     response_placeholder.markdown(full_response + "▌")
                 
@@ -690,7 +688,7 @@ if __name__ == "__main__":
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    with st.expander("📚 Retrieved Chunks", expanded=False):
+                    with st.expander("Retrieved Chunks", expanded=False):
                         for i, doc in enumerate(context):
                             st.markdown(f"**Chunk {i+1}:**")
                             st.text(doc[:150] + "..." if len(doc) > 150 else doc)
@@ -698,15 +696,16 @@ if __name__ == "__main__":
                                 st.markdown("---")
                 
                 with col2:
-                    with st.expander("🎯 Relevant Sections", expanded=False):
+                    with st.expander("Relevant Sections", expanded=False):
                         st.markdown(f"**Section IDs:** {relevant_text_ids}")
                         st.text(relevant_text[:300] + "..." if len(relevant_text) > 300 else relevant_text)
                         
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            st.error(f"Error: {str(e)}")
             st.markdown("""
             <div class="warning-box">
-                <strong>Check:</strong> Ollama running • Models installed • Rephrase question
+                <strong>Check:</strong> Ollama running • Models installed • R
+                ephrase question
             </div>
             """, unsafe_allow_html=True)
 
@@ -723,3 +722,4 @@ if __name__ == "__main__":
         <p>Powered by Ollama • ChromaDB • Streamlit</p>
     </div>
     """, unsafe_allow_html=True)
+    
