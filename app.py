@@ -35,7 +35,6 @@ st.set_page_config(
 # CSS
 st.markdown("""
 <style>
-    /* Global dark theme */
     .stApp {
         background-color: #0e1117;
         color: #fafafa;
@@ -183,29 +182,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-system_prompt = """
-You are a smart assistant tasked with providing detailed answers based solely on the given context. Your goal is to analyze the information provided and formulate a comprehensive, well-structured response to the question.
-
-context will be passed as "Context:"
-user question will be passed as "Question:"
-
-To answer the question:
-1. Thoroughly analyze the context, identifying key information relevant to the question.
-2. Organize your thoughts and plan your response to ensure a logical flow of information.
-3. Formulate a detailed answer that directly addresses the question, using only the information provided in the context.
-4. Ensure your answer is comprehensive, covering all relevant aspects found in the context.
-5. If the context doesn't contain sufficient information to fully answer the question, state this clearly in your response.
-
-Format your response as follows:
-1. Use clear, concise language.
-2. Organize your answer into paragraphs for readability.
-3. Use bullet points or numbered lists where appropriate to break down complex information.
-4. If relevant, include any headings or subheadings to structure your response.
-5. Ensure proper grammar, punctuation, and spelling throughout your answer.
-
-Important: Base your entire response solely on the information provided in the context. Do not include any external knowledge or assumptions not present in the given text.
-"""
-
 # Initialize session state
 if 'document_processed' not in st.session_state:
     st.session_state.document_processed = False
@@ -232,7 +208,6 @@ def process_document(uploaded_file: UploadedFile) -> list[Document]:
         IOError: If there are issues reading/writing the temporary file
         ValueError: If the file type is not supported
     """
-    # Get file extension
     file_extension = uploaded_file.name.lower().split('.')[-1]
     
     # Store uploaded file as a temp file with appropriate extension
@@ -243,7 +218,7 @@ def process_document(uploaded_file: UploadedFile) -> list[Document]:
         # Write the uploaded file content to temp file
         temp_file.write(uploaded_file.read())
         temp_file.flush()
-        temp_file.close()  # Close the file handle before other processes use it
+        temp_file.close()
         
         if file_extension == 'pdf':
             loader = PyMuPDFLoader(temp_file_path)
@@ -254,15 +229,15 @@ def process_document(uploaded_file: UploadedFile) -> list[Document]:
         
         docs = loader.load()
         
-        # Add file type to metadata
+        # add file type to metadata
         for doc in docs:
             doc.metadata['file_type'] = file_extension
             doc.metadata['original_filename'] = uploaded_file.name
         
-        # Split the documents into chunks
+        # split the documents into chunks
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=300,
-            chunk_overlap=50,
+            chunk_size=500,
+            chunk_overlap=200,
             separators=["\n\n", "\n", ".", "?", "!", " ", ""],
         )
         return text_splitter.split_documents(docs)
@@ -363,6 +338,28 @@ def query_collection(prompt: str, n_results: int = 6):
     results = collection.query(query_texts=[prompt], n_results=n_results)
     return results
 
+system_prompt = """
+You are a smart assistant tasked with providing detailed answers based solely on the given context. Your goal is to analyze the information provided and formulate a comprehensive, well-structured response to the question.
+
+context will be passed as "Context:"
+user question will be passed as "Question:"
+
+To answer the question:
+1. Thoroughly analyze the context, identifying key information relevant to the question.
+2. Organize your thoughts and plan your response to ensure a logical flow of information.
+3. Formulate a detailed answer that directly addresses the question, using only the information provided in the context.
+4. Ensure your answer is comprehensive, covering all relevant aspects found in the context.
+5. If the context doesn't contain sufficient information to fully answer the question, state this clearly in your response.
+
+Format your response as follows:
+1. Use clear, concise language.
+2. Organize your answer into paragraphs for readability.
+3. Use bullet points or numbered lists where appropriate to break down complex information.
+4. If relevant, include any headings or subheadings to structure your response.
+5. Ensure proper grammar, punctuation, and spelling throughout your answer.
+
+Important: Base your entire response solely on the information provided in the context. Do not include any external knowledge or assumptions not present in the given text.
+"""
 
 def call_llm(context: str, prompt: str):
     """Calls the language model with context and prompt to generate a response.
@@ -381,7 +378,7 @@ def call_llm(context: str, prompt: str):
         OllamaError: If there are issues communicating with the Ollama API
     """
     # Truncate context if too long to reduce processing time
-    max_context_length = 1000
+    max_context_length = 15000
     if len(context) > max_context_length:
         context = context[:max_context_length] + "..."
     
@@ -396,7 +393,8 @@ def call_llm(context: str, prompt: str):
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful smart assistant. Provide concise, accurate answers based on the given context. Keep responses focused and direct.",
+                # "content": "You are a helpful smart assistant. Provide concise, accurate answers based on the given context. Keep responses focused and direct.",
+                "content":system_prompt,
             },
             {
                 "role": "user",
@@ -441,7 +439,7 @@ def re_rank_cross_encoders(documents: list[str], query: str) -> tuple[str, list[
 
     # Use cached model for faster performance
     encoder_model = load_cross_encoder()
-    ranks = encoder_model.rank(query, documents, top_k=2)  # Reduced from 3 to 2
+    ranks = encoder_model.rank(query, documents, top_k=2)
     for rank in ranks:
         relevant_text += documents[rank["corpus_id"]] + " "
         relevant_text_ids.append(rank["corpus_id"])
@@ -493,7 +491,6 @@ if __name__ == "__main__":
             • Upload multiple related documents for comprehensive analysis<br>
             • Keep total size reasonable for faster processing<br>
             • Ask specific, focused questions<br>
-            • Each upload completely replaces previous documents
         </div>
         """, unsafe_allow_html=True)
 
@@ -509,11 +506,9 @@ if __name__ == "__main__":
             st.session_state.document_processed = False
             st.session_state.document_name = ""
 
-
-
         process = st.button(
             "🚀 Process",
-            help="Process documents for Q&A",
+            help="Process documents for Analysis",
             disabled=not uploaded_files or st.session_state.processing
         )
 
@@ -526,7 +521,7 @@ if __name__ == "__main__":
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
-                    status_text.text("🧹 Clearing previous data...")
+                    status_text.text("Clearing previous data...")
                     progress_bar.progress(5)
                     
                     all_documents_splits = []
@@ -540,7 +535,6 @@ if __name__ == "__main__":
                         status_text.text(f"📖 Processing file {idx + 1}/{total_files}: {uploaded_file.name}")
                         progress_bar.progress(file_progress_start)
                         
-                        # Process individual document
                         try:
                             file_splits = process_document(uploaded_file)
                         except ValueError as e:
@@ -571,7 +565,6 @@ if __name__ == "__main__":
                         status_text.text("Creating embeddings for all documents...")
                         progress_bar.progress(85)
                         
-                        # Create combined filename for collection
                         combined_name = f"multi_doc_{len(uploaded_files)}_files"
                         add_to_vector_collection(all_documents_splits, combined_name)
                         
@@ -607,7 +600,7 @@ if __name__ == "__main__":
         else:
             st.markdown("""
             <div class="warning-box">
-                <strong>⏳ No Documents</strong> - Upload and process documents first
+                <strong>No Documents</strong> - Upload and process documents first
             </div>
             """, unsafe_allow_html=True)
 
@@ -661,11 +654,11 @@ if __name__ == "__main__":
                 st.warning("⚠️ No relevant content found in the document for your question.")
             else:
                 # Step 2: Re-rank results
-                progress_placeholder.info("⚡ Ranking relevance...")
+                progress_placeholder.info("Ranking relevance...")
                 relevant_text, relevant_text_ids = re_rank_cross_encoders(context, prompt)
                 
                 # Step 3: Generate response
-                progress_placeholder.info("🤖 Generating response...")
+                progress_placeholder.info("Generating response...")
                 
                 # Stream the response
                 full_response = ""
